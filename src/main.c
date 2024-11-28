@@ -8,55 +8,82 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdint.h>
 
-typedef enum { SETUP, RED_L, GREEN_L, NOT_PLAYING } STATES;
+typedef enum
+{
+  SETUP,
+  RED_L,
+  GREEN_L,
+  NOT_PLAYING
+} STATES;
 
-typedef struct {
+typedef struct
+{
   const char *key;
-  float value;
+  int value;
 } KeyValuePair;
 
-KeyValuePair times[] = {{"red_short_min", 3.0f},   {"red_short_max", 8.0f},
-                        {"green_short_min", 4.0f}, {"green_short_max", 9.0f},
-                        {"red_long_min", 9.0f},    {"red_long_max", 19.0f},
-                        {"green_long_min", 7.0f},  {"green_long_max", 17.0f}};
+KeyValuePair times[] = {{"red_short_min", 3}, {"red_short_max", 8}, {"green_short_min", 4}, {"green_short_max", 9}, {"red_long_min", 9}, {"red_long_max", 19}, {"green_long_min", 7}, {"green_long_max", 17}};
 
-typedef struct {
-  float Lifetime;
-  bool Repeat;
+typedef struct
+{
+  bool IsStarted;
+  int Lifetime;
+  bool IsRepeat;
 } Timer;
 
 // start or restart a timer with a specific lifetime
-void StartTimer(Timer *timer, float lifetime) {
+void StartTimer(Timer *timer, int lifetime)
+{
   if (timer != NULL)
+  {
     timer->Lifetime = lifetime;
+  }
 }
 
-// update a timer with the current frame time
-void UpdateTimer(Timer *timer) {
+void LowerTimer(Timer *timer)
+{
   // subtract this frame from the timer if it's not already expired
   if (timer != NULL && timer->Lifetime > 0)
-    timer->Lifetime -= GetFrameTime();
+  {
+    timer->Lifetime--;
+  }
 }
 
 // check if a timer is done.
-bool TimerDone(Timer *timer) {
+bool TimerDone(Timer *timer)
+{
   if (timer != NULL)
+  {
     return timer->Lifetime <= 0;
-
-  return false;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 Timer tmrMain;
 Timer tmrRound;
 
 float roundLength;
-int gameLength;
+int gameLength = 99;
 int rounds;
 int currentRound;
 int roundTicker = 30;
 int roundTimeLeft = 10;
 int timeLeft = 45;
+
+int comboBoxActive = 1;
+
+int dboGreenActive = 0;
+bool dboGreenEditMode = false;
+
+int dropdownBox001Active = 0;
+bool dropDown001EditMode = false;
+
+Color previewColor = GRAY;
 
 Sound fxGo;
 Sound fxWait;
@@ -66,40 +93,57 @@ Font monogram;
 
 STATES currentState = SETUP;
 
-float GetRandomFloat(float min, float max) {
+float GetRandomFloat(float min, float max)
+{
   return ((float)rand() / RAND_MAX) * (max - min) + min;
 }
 
-void StartNewRound() {
+int GetRandomInt(int min, int max)
+{
+  return min + rand() / (RAND_MAX / (max - min + 1) + 1);
+}
+
+void StartGreen()
+{
+  previewColor = GREEN;
   float minSecs;
   float maxSecs;
-  // TODO: Change color to green
   PlaySound(fxGo);
   currentState = GREEN_L;
   StopSound(fxWait);
-  // TODO: Check radio button
-  if (true) {
+  if (true)
+  {
     // SHort
-    roundLength = GetRandomFloat(times[2].value, times[3].value);
-
-  } else {
+    roundLength = GetRandomInt(times[2].value, times[3].value);
+  }
+  else
+  {
     // Long
-    roundLength = GetRandomFloat(times[6].value, times[7].value);
+    roundLength = GetRandomInt(times[6].value, times[7].value);
   }
 }
 
+void StartRed()
+{
+  previewColor = RED;
+}
+
 // Function to print the values for demonstration
-void printTimes() {
+void printTimes()
+{
   int num_entries = sizeof(times) /
                     sizeof(times[0]); // Get the number of elements in the array
-  for (int i = 0; i < num_entries; i++) {
-    printf("%s: %.1f\n", times[i].key, times[i].value);
+  for (int i = 0; i < num_entries; i++)
+  {
+    printf("%s: %d\n", times[i].key, times[i].value);
   }
 }
 
 void Update() {}
-void Draw() {
-  switch (currentState) {
+void Draw()
+{
+  switch (currentState)
+  {
 
   SETUP:;
   GREEN_L:;
@@ -109,7 +153,8 @@ void Draw() {
     TraceLog(LOG_FATAL, "Start is not set");
   }
 }
-void CleanUp() {
+void CleanUp()
+{
   UnloadSound(fxGo);
   UnloadSound(fxWait);
   UnloadSound(fxGameOver);
@@ -118,8 +163,9 @@ void CleanUp() {
 
 void DrawLabels() {}
 
-int main() {
-  InitWindow(600, 600, "Red Green");
+int main()
+{
+  InitWindow(600, 300, "Red Green");
   InitAudioDevice();
   srand(time(NULL));
 
@@ -135,11 +181,14 @@ int main() {
 
   bool showMessageBox = false;
 
-  while (!WindowShouldClose()) {
+  while (!WindowShouldClose())
+  {
 
     // Update
+    //----------------------------------------------------------------------------------
     roundTicker--;
-    if (roundTicker <= 0) {
+    if (roundTicker <= 0)
+    {
       Clamp(timeLeft--, 0, 100);
       // timeLeft--;
       roundTicker = 30;
@@ -148,29 +197,49 @@ int main() {
     // Draw
     //----------------------------------------------------------------------------------
     BeginDrawing();
-    // TODO: Change color of background based on round.
-    ClearBackground(BLUE);
+    ClearBackground(DARKGRAY);
 
-    if (GuiButton((Rectangle){24, 24, 300, 30}, "Show Message")) {
-      showMessageBox = true;
+    if (GuiButton((Rectangle){24, 24, 300, 30}, "Start"))
+    {
+      previewColor = RED;
       PlaySound(fxGo);
     }
 
-    // if (GuiButton((Rectangle){24, 24, 300, 30}, "Show Message"))
+    GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0xff0000ff);
+    if (GuiDropdownBox((Rectangle){160, 100, 125, 30}, "Short;Long", &dropdownBox001Active, dropDown001EditMode))
+    {
+      dropDown001EditMode = !dropDown001EditMode;
+    }
+
+    GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0x008000FF);
+    if (GuiDropdownBox((Rectangle){25, 100, 125, 30}, "Short;Long", &dboGreenActive, dboGreenEditMode))
+    {
+      dboGreenEditMode = !dboGreenEditMode;
+      TraceLog(LOG_INFO, TextFormat("Selected Green: %i", dboGreenActive));
+    }
+
+    GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0x00000000);
 
     GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", timeLeft));
-    // GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", timeLeft));
 
-    // DrawTextPro(monogram, const char *text, Vector2 position, Vector2 origin,
-    // float rotation, float fontSize, float spacing, Color tint)
+    DrawRectangle(400, 100, 150, 150, previewColor);
 
-    if (showMessageBox) {
+    if (showMessageBox)
+    {
       int result =
-          GuiMessageBox((Rectangle){85, 70, 250, 100}, "#191#Message Box",
-                        "Hi! This is a message!", "Nice;Cool");
+          GuiMessageBox((Rectangle){85, 70, 270, 120}, "Alert",
+                        "Done", "Okay");
 
       if (result >= 0)
+      {
+        previewColor = GREEN;
         showMessageBox = false;
+      }
+    }
+
+    if (gameLength <= 0)
+    {
+      showMessageBox = true;
     }
 
     EndDrawing();
