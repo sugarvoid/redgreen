@@ -18,13 +18,18 @@ typedef enum
   NOT_PLAYING
 } STATES;
 
-typedef struct
-{
-  const char *key;
-  int value;
-} KeyValuePair;
 
-KeyValuePair times[] = {{"red_short_min", 3}, {"red_short_max", 8}, {"green_short_min", 4}, {"green_short_max", 9}, {"red_long_min", 9}, {"red_long_max", 19}, {"green_long_min", 7}, {"green_long_max", 17}};
+const int redShortMin = 3;
+const int redShortMax = 8;
+const int redLongMin = 9;
+const int redLongMax = 19;
+
+const int greenShortMin = 4;
+const int greenShortMax = 9;
+const int greenLongMin = 7;
+const int greenLongMax = 17;
+
+
 
 typedef struct
 {
@@ -66,28 +71,42 @@ bool TimerDone(Timer *timer)
 
 Timer tmrMain;
 Timer tmrRound;
-
+const int FPS = 30;
 float roundLength;
 int gameLength = 99;
 int rounds;
 int currentRound;
-int roundTicker = 30;
+int ticker = 30;
 int roundTimeLeft = 10;
 int timeLeft = 45;
+
+bool showMessageBox = false;
+bool hasGameStarted = false;
+
+bool isGreenLong;
+bool isRedLong;
+
+int greenMode;
+int redMode;
 
 int comboBoxActive = 1;
 
 int dboGreenActive = 0;
 bool dboGreenEditMode = false;
 
-int dropdownBox001Active = 0;
-bool dropDown001EditMode = false;
+int dboRedActive = 0;
+bool dboRedEditMode = false;
+
+int spnTotalTimeValue = 0;
+bool spnTotalTimeEditMode = false;
 
 Color previewColor = GRAY;
 
 Sound fxGo;
-Sound fxWait;
+//Sound fxWait;
 Sound fxGameOver;
+
+Music fxWait;
 
 Font monogram;
 
@@ -103,60 +122,72 @@ int GetRandomInt(int min, int max)
   return min + rand() / (RAND_MAX / (max - min + 1) + 1);
 }
 
+const char *GetModeText(int mode)
+{
+  if (mode == 0)
+    return "Short";
+  return "Long";
+}
+
+
+
 void StartGreen()
 {
-  previewColor = GREEN;
-  float minSecs;
-  float maxSecs;
-  PlaySound(fxGo);
   currentState = GREEN_L;
-  StopSound(fxWait);
-  if (true)
+  previewColor = GREEN;
+  PlaySound(fxGo);
+  StopMusicStream(fxWait);
+  if (greenMode == 0)
   {
     // SHort
-    roundLength = GetRandomInt(times[2].value, times[3].value);
+    roundLength = GetRandomInt(greenShortMin, greenShortMax);
   }
   else
   {
     // Long
-    roundLength = GetRandomInt(times[6].value, times[7].value);
+    roundLength = GetRandomInt(greenLongMin, greenLongMax);
   }
+
+  // TODO: start timer with roundLength
 }
 
 void StartRed()
 {
+  StopSound(fxGo);
+  PlayMusicStream(fxWait);
+  currentState = RED_L;
   previewColor = RED;
+  if (redMode == 0)
+  {
+    // SHort
+    roundLength = GetRandomInt(redShortMin, redShortMax);
+  }
+  else
+  {
+    // Long
+    roundLength = GetRandomInt(redLongMin, redLongMax);
+  }
+
+  // TODO: start timer with roundLength
 }
 
-// Function to print the values for demonstration
-void printTimes()
+void StartGame(int minutes)
 {
-  int num_entries = sizeof(times) /
-                    sizeof(times[0]); // Get the number of elements in the array
-  for (int i = 0; i < num_entries; i++)
+  if (minutes > 0)
   {
-    printf("%s: %d\n", times[i].key, times[i].value);
+    gameLength = minutes * 60;
+    TraceLog(LOG_INFO, TextFormat("Staring Game\nLength: %i\nGreen Mode: %s\nRed Mode: %s", minutes, GetModeText(greenMode), GetModeText(redMode)));
+    hasGameStarted = true;
+    StartGreen();
   }
 }
 
 void Update() {}
-void Draw()
-{
-  switch (currentState)
-  {
-
-  SETUP:;
-  GREEN_L:;
-  RED_L:;
-  NOT_PLAYING:;
-  _:
-    TraceLog(LOG_FATAL, "Start is not set");
-  }
-}
+void Draw() {}
 void CleanUp()
 {
   UnloadSound(fxGo);
-  UnloadSound(fxWait);
+  UnloadMusicStream(fxWait);
   UnloadSound(fxGameOver);
   UnloadFont(monogram);
 }
@@ -166,32 +197,39 @@ void DrawLabels() {}
 int main()
 {
   InitWindow(600, 300, "Red Green");
+  SetTargetFPS(FPS);
   InitAudioDevice();
   srand(time(NULL));
-
-  printTimes();
-
   fxGo = LoadSound("res/inspectorj__bell-counter.wav");
-  fxWait = LoadSound("resources/vataaa__metronome.ogg");
-  fxGameOver = LoadSound("resources/davidbain__end_game_fail.wav");
+  fxWait = LoadMusicStream("res/vattaaa__metronome.ogg");
+  fxGameOver = LoadSound("res/davidbain__end_game_fail.wav");
   monogram = LoadFont("res/monogram.ttf");
   GuiSetFont(monogram);
   GuiSetStyle(DEFAULT, TEXT_SIZE, 32);
-  SetTargetFPS(30);
-
-  bool showMessageBox = false;
 
   while (!WindowShouldClose())
   {
-
+    //TraceLog(LOG_INFO, TextFormat("%d", IsMusicValid(fxWait)));
+    //TraceLog(LOG_INFO, TextFormat("%d", IsMusicStreamPlaying(fxWait)));
+    //TraceLog(LOG_INFO, TextFormat("%f", GetMusicTimePlayed(fxWait)));
     // Update
     //----------------------------------------------------------------------------------
-    roundTicker--;
-    if (roundTicker <= 0)
+    UpdateMusicStream(fxWait);
+    if (hasGameStarted)
     {
-      Clamp(timeLeft--, 0, 100);
-      // timeLeft--;
-      roundTicker = 30;
+      
+      //if (currentState == GREEN_L && !IsSoundPlaying(fxWait))
+      //{
+      //  TraceLog(LOG_INFO, "Starting ticking sound again");
+        //PlaySound(fxWait);
+        //continue;
+      //}
+      ticker--;
+      if (ticker <= 0)
+      {
+        Clamp(gameLength--, 0, 100);
+        ticker = FPS;
+      }
     }
 
     // Draw
@@ -199,16 +237,22 @@ int main()
     BeginDrawing();
     ClearBackground(DARKGRAY);
 
-    if (GuiButton((Rectangle){24, 24, 300, 30}, "Start"))
+    if (GuiButton((Rectangle){24, 200, 300, 30}, "Start"))
     {
-      previewColor = RED;
-      PlaySound(fxGo);
+      greenMode = dboGreenActive;
+      redMode = dboRedActive;
+      StartGame(spnTotalTimeValue);
+      previewColor = GREEN;
     }
 
+    if (GuiSpinner((Rectangle){25, 30, 125, 30}, NULL, &spnTotalTimeValue, 0, 100, spnTotalTimeEditMode))
+      spnTotalTimeEditMode = !spnTotalTimeEditMode;
+
     GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0xff0000ff);
-    if (GuiDropdownBox((Rectangle){160, 100, 125, 30}, "Short;Long", &dropdownBox001Active, dropDown001EditMode))
+    if (GuiDropdownBox((Rectangle){160, 100, 125, 30}, "Short;Long", &dboRedActive, dboRedEditMode))
     {
-      dropDown001EditMode = !dropDown001EditMode;
+      dboRedEditMode = !dboRedEditMode;
+      TraceLog(LOG_INFO, TextFormat("Selected Red: %i", dboRedActive));
     }
 
     GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0x008000FF);
@@ -220,9 +264,9 @@ int main()
 
     GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0x00000000);
 
-    GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", timeLeft));
+    GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", gameLength));
 
-    DrawRectangle(400, 100, 150, 150, previewColor);
+    DrawRectangle(350, 40, 200, 200, previewColor);
 
     if (showMessageBox)
     {
