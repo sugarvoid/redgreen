@@ -126,7 +126,7 @@ int main() {
   printTimes();
 
   fxGo = LoadSound("res/inspectorj__bell-counter.wav");
-  fxWait = LoadSound("resources/vataaa__metronome.wav");
+  fxWait = LoadSound("resources/vataaa__metronome.ogg");
   fxGameOver = LoadSound("resources/davidbain__end_game_fail.wav");
   monogram = LoadFont("res/monogram.ttf");
   GuiSetFont(monogram);
