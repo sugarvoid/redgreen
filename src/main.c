@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-typedef enum { RED_L, GREEN_L, NOT_PLAYING } STATES;
+typedef enum { SETUP, RED_L, GREEN_L, NOT_PLAYING } STATES;
 
 typedef struct {
   const char *key;
@@ -23,6 +23,7 @@ KeyValuePair times[] = {{"red_short_min", 3.0f},   {"red_short_max", 8.0f},
 
 typedef struct {
   float Lifetime;
+  bool Repeat;
 } Timer;
 
 // start or restart a timer with a specific lifetime
@@ -33,7 +34,7 @@ void StartTimer(Timer *timer, float lifetime) {
 
 // update a timer with the current frame time
 void UpdateTimer(Timer *timer) {
-  // subtract this frame from the timer if it's not allready expired
+  // subtract this frame from the timer if it's not already expired
   if (timer != NULL && timer->Lifetime > 0)
     timer->Lifetime -= GetFrameTime();
 }
@@ -46,6 +47,11 @@ bool TimerDone(Timer *timer) {
   return false;
 }
 
+Timer tmrMain;
+Timer tmrRound;
+
+float roundLength;
+int gameLength;
 int rounds;
 int currentRound;
 int roundTicker = 30;
@@ -58,11 +64,28 @@ Sound fxGameOver;
 
 Font monogram;
 
-STATES current_state = NOT_PLAYING;
+STATES currentState = SETUP;
+
+float GetRandomFloat(float min, float max) {
+  return ((float)rand() / RAND_MAX) * (max - min) + min;
+}
 
 void StartNewRound() {
   float minSecs;
   float maxSecs;
+  // TODO: Change color to green
+  PlaySound(fxGo);
+  currentState = GREEN_L;
+  StopSound(fxWait);
+  // TODO: Check radio button
+  if (true) {
+    // SHort
+    roundLength = GetRandomFloat(times[2].value, times[3].value);
+
+  } else {
+    // Long
+    roundLength = GetRandomFloat(times[6].value, times[7].value);
+  }
 }
 
 // Function to print the values for demonstration
@@ -74,22 +97,26 @@ void printTimes() {
   }
 }
 
-float getRandomFloat(float min, float max) {
-  return ((float)rand() / RAND_MAX) * (max - min) + min;
-}
-
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
-
 void Update() {}
-void Draw() {}
+void Draw() {
+  switch (currentState) {
+
+  SETUP:;
+  GREEN_L:;
+  RED_L:;
+  NOT_PLAYING:;
+  _:
+    TraceLog(LOG_FATAL, "Start is not set");
+  }
+}
 void CleanUp() {
   UnloadSound(fxGo);
   UnloadSound(fxWait);
   UnloadSound(fxGameOver);
   UnloadFont(monogram);
 }
+
+void DrawLabels() {}
 
 int main() {
   InitWindow(600, 600, "Red Green");
@@ -132,6 +159,7 @@ int main() {
     // if (GuiButton((Rectangle){24, 24, 300, 30}, "Show Message"))
 
     GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", timeLeft));
+    // GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", timeLeft));
 
     // DrawTextPro(monogram, const char *text, Vector2 position, Vector2 origin,
     // float rotation, float fontSize, float spacing, Color tint)
