@@ -15,9 +15,8 @@ typedef enum
   SETUP,
   RED_L,
   GREEN_L,
-  NOT_PLAYING
+  DONE
 } STATES;
-
 
 const int redShortMin = 3;
 const int redShortMax = 8;
@@ -29,67 +28,21 @@ const int greenShortMax = 9;
 const int greenLongMin = 7;
 const int greenLongMax = 17;
 
-
-
-typedef struct
-{
-  bool IsStarted;
-  int Lifetime;
-  bool IsRepeat;
-} Timer;
-
-// start or restart a timer with a specific lifetime
-void StartTimer(Timer *timer, int lifetime)
-{
-  if (timer != NULL)
-  {
-    timer->Lifetime = lifetime;
-  }
-}
-
-void LowerTimer(Timer *timer)
-{
-  // subtract this frame from the timer if it's not already expired
-  if (timer != NULL && timer->Lifetime > 0)
-  {
-    timer->Lifetime--;
-  }
-}
-
-// check if a timer is done.
-bool TimerDone(Timer *timer)
-{
-  if (timer != NULL)
-  {
-    return timer->Lifetime <= 0;
-  }
-  else
-  {
-    return false;
-  }
-}
-
-Timer tmrMain;
-Timer tmrRound;
 const int FPS = 30;
-float roundLength;
+
+int roundLength;
 int gameLength = 99;
 int rounds;
 int currentRound;
-int ticker = 30;
-int roundTimeLeft = 10;
-int timeLeft = 45;
+int ticker;
+int greenLength;
+int redLength;
 
 bool showMessageBox = false;
 bool hasGameStarted = false;
 
-bool isGreenLong;
-bool isRedLong;
-
 int greenMode;
 int redMode;
-
-int comboBoxActive = 1;
 
 int dboGreenActive = 0;
 bool dboGreenEditMode = false;
@@ -103,14 +56,11 @@ bool spnTotalTimeEditMode = false;
 Color previewColor = GRAY;
 
 Sound fxGo;
-//Sound fxWait;
 Sound fxGameOver;
-
 Music fxWait;
-
 Font monogram;
 
-STATES currentState = SETUP;
+STATES currentState;
 
 float GetRandomFloat(float min, float max)
 {
@@ -129,46 +79,46 @@ const char *GetModeText(int mode)
   return "Long";
 }
 
-
-
 void StartGreen()
 {
-  currentState = GREEN_L;
-  previewColor = GREEN;
-  PlaySound(fxGo);
-  StopMusicStream(fxWait);
   if (greenMode == 0)
   {
-    // SHort
+    // Short
     roundLength = GetRandomInt(greenShortMin, greenShortMax);
+    greenLength = roundLength;
   }
   else
   {
     // Long
     roundLength = GetRandomInt(greenLongMin, greenLongMax);
+    greenLength = roundLength;
   }
-
-  // TODO: start timer with roundLength
+  currentState = GREEN_L;
+  previewColor = GREEN;
+  PlaySound(fxGo);
+  StopMusicStream(fxWait);
+  TraceLog(LOG_DEBUG, TextFormat("Starting Green: %i seconds", greenLength));
 }
 
 void StartRed()
 {
-  StopSound(fxGo);
-  PlayMusicStream(fxWait);
-  currentState = RED_L;
-  previewColor = RED;
   if (redMode == 0)
   {
-    // SHort
+    // Short
     roundLength = GetRandomInt(redShortMin, redShortMax);
+    redLength = roundLength;
   }
   else
   {
     // Long
     roundLength = GetRandomInt(redLongMin, redLongMax);
+    redLength = roundLength;
   }
-
-  // TODO: start timer with roundLength
+  StopSound(fxGo);
+  PlayMusicStream(fxWait);
+  currentState = RED_L;
+  previewColor = RED;
+  TraceLog(LOG_DEBUG, TextFormat("Starting Red: %i seconds", redLength));
 }
 
 void StartGame(int minutes)
@@ -176,67 +126,57 @@ void StartGame(int minutes)
   if (minutes > 0)
   {
     gameLength = minutes * 60;
-    TraceLog(LOG_INFO, TextFormat("Staring Game\nLength: %i\nGreen Mode: %s\nRed Mode: %s", minutes, GetModeText(greenMode), GetModeText(redMode)));
+    TraceLog(LOG_DEBUG, TextFormat("Staring Game\nLength: %i\nGreen Mode: %s\nRed Mode: %s", minutes, GetModeText(greenMode), GetModeText(redMode)));
     hasGameStarted = true;
     StartGreen();
   }
 }
 
-void Update() {}
-void Draw() {}
-void CleanUp()
+void Update()
 {
-  UnloadSound(fxGo);
-  UnloadMusicStream(fxWait);
-  UnloadSound(fxGameOver);
-  UnloadFont(monogram);
+  UpdateMusicStream(fxWait);
+  if (hasGameStarted)
+  {
+    ticker--;
+    if (ticker <= 0)
+    {
+      Clamp(gameLength--, 0, 100);
+
+      if (currentState == GREEN_L)
+      {
+        Clamp(greenLength--, 0, 100);
+        if (greenLength == 0)
+        {
+          StartRed();
+        }
+      }
+      else if (currentState == RED_L)
+      {
+        Clamp(redLength--, 0, 100);
+        if (redLength == 0)
+        {
+          StartGreen();
+        }
+      }
+      ticker = FPS;
+    }
+  }
+
+  if (gameLength <= 0 && currentState != DONE)
+  {
+    currentState = DONE;
+    PlaySound(fxGameOver);
+    showMessageBox = true;
+  }
 }
 
-void DrawLabels() {}
-
-int main()
+void Draw()
 {
-  InitWindow(600, 300, "Red Green");
-  SetTargetFPS(FPS);
-  InitAudioDevice();
-  srand(time(NULL));
-  fxGo = LoadSound("res/inspectorj__bell-counter.wav");
-  fxWait = LoadMusicStream("res/vattaaa__metronome.ogg");
-  fxGameOver = LoadSound("res/davidbain__end_game_fail.wav");
-  monogram = LoadFont("res/monogram.ttf");
-  GuiSetFont(monogram);
-  GuiSetStyle(DEFAULT, TEXT_SIZE, 32);
+  BeginDrawing();
+  ClearBackground(DARKGRAY);
 
-  while (!WindowShouldClose())
+  if (currentState == SETUP)
   {
-    //TraceLog(LOG_INFO, TextFormat("%d", IsMusicValid(fxWait)));
-    //TraceLog(LOG_INFO, TextFormat("%d", IsMusicStreamPlaying(fxWait)));
-    //TraceLog(LOG_INFO, TextFormat("%f", GetMusicTimePlayed(fxWait)));
-    // Update
-    //----------------------------------------------------------------------------------
-    UpdateMusicStream(fxWait);
-    if (hasGameStarted)
-    {
-      
-      //if (currentState == GREEN_L && !IsSoundPlaying(fxWait))
-      //{
-      //  TraceLog(LOG_INFO, "Starting ticking sound again");
-        //PlaySound(fxWait);
-        //continue;
-      //}
-      ticker--;
-      if (ticker <= 0)
-      {
-        Clamp(gameLength--, 0, 100);
-        ticker = FPS;
-      }
-    }
-
-    // Draw
-    //----------------------------------------------------------------------------------
-    BeginDrawing();
-    ClearBackground(DARKGRAY);
-
     if (GuiButton((Rectangle){24, 200, 300, 30}, "Start"))
     {
       greenMode = dboGreenActive;
@@ -252,41 +192,69 @@ int main()
     if (GuiDropdownBox((Rectangle){160, 100, 125, 30}, "Short;Long", &dboRedActive, dboRedEditMode))
     {
       dboRedEditMode = !dboRedEditMode;
-      TraceLog(LOG_INFO, TextFormat("Selected Red: %i", dboRedActive));
+      TraceLog(LOG_DEBUG, TextFormat("Selected Red: %i", dboRedActive));
     }
 
     GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0x008000FF);
     if (GuiDropdownBox((Rectangle){25, 100, 125, 30}, "Short;Long", &dboGreenActive, dboGreenEditMode))
     {
       dboGreenEditMode = !dboGreenEditMode;
-      TraceLog(LOG_INFO, TextFormat("Selected Green: %i", dboGreenActive));
+      TraceLog(LOG_DEBUG, TextFormat("Selected Green: %i", dboGreenActive));
     }
 
     GuiSetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL, 0x00000000);
+  }
 
-    GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", gameLength));
+  if (currentState == GREEN_L || currentState == RED_L)
+  {
+    DrawRectangle(200, 40, 200, 200, previewColor);
+  }
 
-    DrawRectangle(350, 40, 200, 200, previewColor);
+  GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", gameLength));
 
-    if (showMessageBox)
+  if (showMessageBox)
+  {
+    int result =
+        GuiMessageBox((Rectangle){85, 70, 270, 120}, "Alert",
+                      "Done", "Okay");
+
+    if (result >= 0)
     {
-      int result =
-          GuiMessageBox((Rectangle){85, 70, 270, 120}, "Alert",
-                        "Done", "Okay");
-
-      if (result >= 0)
-      {
-        previewColor = GREEN;
-        showMessageBox = false;
-      }
+      currentState = SETUP;
+      showMessageBox = false;
     }
+  }
 
-    if (gameLength <= 0)
-    {
-      showMessageBox = true;
-    }
+  EndDrawing();
+}
+void CleanUp()
+{
+  UnloadSound(fxGo);
+  UnloadMusicStream(fxWait);
+  UnloadSound(fxGameOver);
+  UnloadFont(monogram);
+}
 
-    EndDrawing();
+int main()
+{
+  currentState = SETUP;
+  ticker = FPS;
+  InitWindow(600, 300, "Red Green");
+  SetTargetFPS(FPS);
+  InitAudioDevice();
+  SetTraceLogLevel(LOG_DEBUG);
+  srand(time(NULL));
+  fxGo = LoadSound("res/inspectorj__bell-counter.wav");
+  fxWait = LoadMusicStream("res/vattaaa__metronome.ogg");
+  fxGameOver = LoadSound("res/davidbain__end_game_fail.wav");
+  monogram = LoadFont("res/monogram.ttf");
+  GuiSetFont(monogram);
+  GuiSetStyle(DEFAULT, TEXT_SIZE, 32);
+
+  while (!WindowShouldClose())
+  {
+    Update();
+    Draw();
   }
 
   CleanUp();
