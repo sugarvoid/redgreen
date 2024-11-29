@@ -39,7 +39,7 @@ int greenLength;
 int redLength;
 
 bool showMessageBox = false;
-bool hasGameStarted = false;
+bool isGameRunning = false;
 
 int greenMode;
 int redMode;
@@ -127,7 +127,7 @@ void StartGame(int minutes)
   {
     gameLength = minutes * 60;
     TraceLog(LOG_DEBUG, TextFormat("Staring Game\nLength: %i\nGreen Mode: %s\nRed Mode: %s", minutes, GetModeText(greenMode), GetModeText(redMode)));
-    hasGameStarted = true;
+    isGameRunning = true;
     StartGreen();
   }
 }
@@ -135,7 +135,7 @@ void StartGame(int minutes)
 void Update()
 {
   UpdateMusicStream(fxWait);
-  if (hasGameStarted)
+  if (isGameRunning)
   {
     ticker--;
     if (ticker <= 0)
@@ -164,6 +164,7 @@ void Update()
 
   if (gameLength <= 0 && currentState != DONE)
   {
+    isGameRunning = false;
     currentState = DONE;
     PlaySound(fxGameOver);
     showMessageBox = true;
