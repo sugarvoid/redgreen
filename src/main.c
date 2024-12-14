@@ -193,7 +193,7 @@ void Draw() {
     DrawRectangle(200, 40, 200, 200, previewColor);
   }
 
-  GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", gameLength));
+  //GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", gameLength));
 
   if (showMessageBox) {
     int result =
