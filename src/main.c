@@ -47,7 +47,6 @@ bool dboRedEditMode = false;
 int spnTotalTimeValue = 0;
 bool spnTotalTimeEditMode = false;
 
-// Texture light;
 Rectangle frameRec;
 const Vector2 lightPosition = {400.0f, 50.0f};
 int currentFrame = 0;
@@ -89,9 +88,7 @@ void StartGreen() {
   previewColor = GREEN;
   PlaySound(fxGo);
   StopMusicStream(fxWait);
-  // TODO: Make a function
   currentFrame = 2;
-  // frameRec.x = (float)currentFrame * (float)light.width / 3;
   TraceLog(LOG_DEBUG, TextFormat("Starting Green: %i seconds", greenLength));
 }
 
@@ -107,7 +104,6 @@ void StartRed() {
   }
   StopSound(fxGo);
   currentFrame = 1;
-  // frameRec.x = (float)currentFrame * (float)light.width / 3;
   PlayMusicStream(fxWait);
   currentState = RED_L;
   previewColor = RED;
@@ -193,8 +189,6 @@ void Draw() {
     DrawRectangle(200, 40, 200, 200, previewColor);
   }
 
-  //GuiLabel((Rectangle){50, 50, 100, 50}, TextFormat("%03i", gameLength));
-
   if (showMessageBox) {
     int result =
         GuiMessageBox((Rectangle){85, 70, 270, 120}, "Alert", "Done", "Okay");
@@ -205,13 +199,9 @@ void Draw() {
     }
   }
 
-  // DrawTextureRec(light, frameRec, lightPosition, WHITE); // Draw part of the
-  // texture
-
   EndDrawing();
 }
 void CleanUp() {
-  // UnloadTexture(light);
   UnloadSound(fxGo);
   UnloadMusicStream(fxWait);
   UnloadSound(fxGameOver);
@@ -222,15 +212,11 @@ int main() {
   InitWindow(600, 300, "Red Green");
   SetTargetFPS(FPS);
   InitAudioDevice();
-  // light = LoadTexture("res/light.png");
-  // frameRec = (Rectangle){0.0f, 0.0f, (float)light.width / 3,
-  // (float)light.height};
   currentState = SETUP;
   ticker = FPS;
 
   SetTraceLogLevel(LOG_DEBUG);
   currentFrame = 0;
-  // frameRec.x = (float)currentFrame * (float)light.width / 3;
   srand(time(NULL));
   fxGo = LoadSound("res/inspectorj__bell-counter.wav");
   fxWait = LoadMusicStream("res/vattaaa__metronome.ogg");
